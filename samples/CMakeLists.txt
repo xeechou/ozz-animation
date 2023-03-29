@@ -19,3 +19,6 @@ add_subdirectory(playback)
 add_subdirectory(skinning)
 add_subdirectory(two_bone_ik)
 add_subdirectory(user_channel)
+
+#my tests
+add_subdirectory(mine_anim_select)

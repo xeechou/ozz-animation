@@ -1,3 +1,6 @@
 build/
 build-cc/
 .DS_Store
+.dir-locals.el
+compile_commands.json
+.cache/
