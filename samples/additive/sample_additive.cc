@@ -43,6 +43,7 @@
 #include "ozz/base/maths/simd_math.h"
 #include "ozz/base/maths/soa_transform.h"
 #include "ozz/base/maths/vec_float.h"
+#include "ozz/base/span.h"
 #include "ozz/options/options.h"
 
 // Skeleton archive can be specified as an option.
@@ -93,6 +94,18 @@ class AdditiveBlendSampleApplication : public ozz::sample::Application {
     // Samples animation.
     if (!sampling_job.Run()) {
       return false;
+    }
+
+    for (int i = 0; i < kNumLayers; ++i) {
+      ozz::animation::SamplingJob sampling_job;
+      sampling_job.animation = &additive_animation_[i];
+      sampling_job.context = &additive_context_[i];
+      sampling_job.ratio = controller_.time_ratio();
+      sampling_job.output = ozz::make_span(additive_locals_[i]);
+
+      if (!sampling_job.Run()) {
+        return false;
+      }
     }
 
     // Setups blending job layers.
@@ -206,34 +219,33 @@ class AdditiveBlendSampleApplication : public ozz::sample::Application {
     for (int i = 0; i < kNumLayers; ++i) {
       // Reads animation on the stack as it won't need to be maintained in
       // memory. Only the pose is needed.
-      ozz::animation::Animation animation;
-      if (!ozz::sample::LoadAnimation(filenames[i], &animation)) {
+      if (!ozz::sample::LoadAnimation(filenames[i], &additive_animation_[i])) {
         return false;
       }
 
-      if (num_joints != animation.num_tracks()) {
+      if (num_joints != additive_animation_[i].num_tracks()) {
         return false;
       }
 
       // Allocates additive poses, aka buffers of Soa tranforms.
       additive_locals_[i].resize(num_soa_joints);
+      additive_context_[i].Resize(num_joints);
+      // // Samples the first frame pose.
+      // ozz::animation::SamplingJob sampling_job;
+      // sampling_job.animation = &animation;
+      // sampling_job.context = &context_;
+      // sampling_job.ratio = 0.f;  // Only needs the first frame pose
+      // sampling_job.output = make_span(additive_locals_[i]);
 
-      // Samples the first frame pose.
-      ozz::animation::SamplingJob sampling_job;
-      sampling_job.animation = &animation;
-      sampling_job.context = &context_;
-      sampling_job.ratio = 0.f;  // Only needs the first frame pose
-      sampling_job.output = make_span(additive_locals_[i]);
-
-      // Samples animation.
-      if (!sampling_job.Run()) {
-        return false;
-      }
+      // // Samples animation.
+      // if (!sampling_job.Run()) {
+      //   return false;
+      // }
 
       // Invalidates context which will be re-used for another animation.
       // This is usually not needed, animation address on the stack is the same
       // each loop, hence creating an issue as animation content is changing.
-      context_.Invalidate();
+      // context_.Invalidate();
     }
 
     return true;
@@ -315,6 +327,10 @@ class AdditiveBlendSampleApplication : public ozz::sample::Application {
   // Main animation controller. This is a utility class that helps with
   // controlling animation playback time.
   ozz::sample::PlaybackController controller_;
+
+  ozz::sample::PlaybackController additive_controller_[kNumLayers];
+  ozz::animation::Animation additive_animation_[kNumLayers];
+  ozz::animation::SamplingJob::Context additive_context_[kNumLayers];
 
   // Sampling context.
   ozz::animation::SamplingJob::Context context_;

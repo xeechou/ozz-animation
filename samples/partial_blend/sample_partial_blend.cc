@@ -39,6 +39,8 @@
 #include "ozz/animation/runtime/skeleton_utils.h"
 #include "ozz/base/containers/vector.h"
 #include "ozz/base/log.h"
+#include "ozz/base/maths/box.h"
+#include "ozz/base/maths/internal/simd_math_config.h"
 #include "ozz/base/maths/simd_math.h"
 #include "ozz/base/maths/soa_transform.h"
 #include "ozz/base/maths/vec_float.h"
@@ -137,8 +139,28 @@ class PartialBlendSampleApplication : public ozz::sample::Application {
 
   // Samples animation, transforms to model space and renders.
   virtual bool OnDisplay(ozz::sample::Renderer* _renderer) {
-    return _renderer->DrawPosture(skeleton_, make_span(models_),
-                                  ozz::math::Float4x4::identity());
+    if (!_renderer->DrawPosture(skeleton_, make_span(models_),
+                                ozz::math::Float4x4::identity())) {
+      return false;
+    }
+
+    //prepare to draw the attachment to see
+    const ozz::math::Float4x4& joint = models_[upper_body_root_];
+
+    const ozz::math::SimdFloat4 translation =
+      ozz::math::simd_float4::Load(0.f, 0.f, 0.f, 0.f);
+
+    const ozz::math::Float4x4 transform =
+      joint * ozz::math::Float4x4::Translation(translation);
+
+    const float thickness = 0.01f;
+    const float length = .5f;
+    const ozz::math::Box box(ozz::math::Float3(-thickness, -thickness, -length),
+                             ozz::math::Float3(thickness, thickness, 0.f));
+    const ozz::sample::Color colors[2] = {ozz::sample::kRed,
+                                          ozz::sample::kGreen};
+
+    return _renderer->DrawBoxIm(box, transform, colors);
   }
 
   virtual bool OnInitialize() {
