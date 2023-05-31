@@ -104,12 +104,12 @@ class MillipedeSampleApplication : public ozz::sample::Application {
       ozz::math::SimdFloat4 rotate = ozz::math::NormalizeSafe4(
           ozz::math::simd_float4::LoadPtrU(&rotations_[i].x), w_axis);
 
-      transforms[i] = ozz::math::Float4x4::Translation(trans) *
-                      ozz::math::Float4x4::FromEuler(rotate);
+      transforms[i] = ozz::math::Float4x4::FromEuler(rotate) *
+                      ozz::math::Float4x4::Translation(trans);
     }
     // now we need to convert it into locals_
     for (size_t i = 0; i < models_.size(); i++) {
-      models_[i] = (i == 0) ? transforms[i] : transforms[i] * models_[i - 1];
+      models_[i] = (i == 0) ? transforms[i] : models_[i - 1] * transforms[i];
     }
 
     // // Converts from local space to model space matrices.
@@ -150,8 +150,7 @@ class MillipedeSampleApplication : public ozz::sample::Application {
 
     // Uses an exponential scale in the slider to maintain enough precision in
     // the lowest values.
-    if (_im_gui->DoSlider(label, 8, ozz::animation::Skeleton::kMaxJoints,
-                          &joints, .3f, true)) {
+    if (_im_gui->DoSlider(label, 3, 20, &joints, .3f, true)) {
       const int new_joints_count = (joints - 1);
       // Slider use floats, we need to check if it has really changed.
       if (new_joints_count != joint_count_) {
@@ -196,22 +195,22 @@ class MillipedeSampleApplication : public ozz::sample::Application {
   void CreateSkeleton(ozz::animation::offline::RawSkeleton* _skeleton) {
     _skeleton->roots.resize(1);
     RawSkeleton::Joint* root = &_skeleton->roots[0];
-    root->name = "root";
-    root->transform.translation = Float3(0.f, 0.1f, 0.0);
+    root->name = "joint-0";
+    root->transform.translation = Float3::zero();
     root->transform.rotation = Quaternion::identity();
     root->transform.scale = Float3::one();
 
     char buf[16];
-    for (int i = 0; i < joint_count_; ++i) {
+    for (int i = 1; i < joint_count_; ++i) {
       root->children.resize(1);
-      // Format joint number.
-      std::sprintf(buf, "joint-%d", i);
-
       RawSkeleton::Joint& joint = root->children[0];
+
+      std::sprintf(buf, "joint-%d", i);
       joint.name = buf;
-      joint.transform.translation = Float3(0.0f, 1.0f, 0.0f);
+      joint.transform.translation = kTransUp;
       joint.transform.rotation = Quaternion::identity();
       joint.transform.scale = Float3::one();
+
       root = &root->children[0];
     }
   }
